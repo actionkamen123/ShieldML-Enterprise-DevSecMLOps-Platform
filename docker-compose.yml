@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  devsecmlops-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shieldml-api-service
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - HMAC_SECRET_KEY=devsecmlops-super-secure-production-signature-key-2026
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - shield-net
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: shieldml-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    depends_on:
+      - devsecmlops-api
+    restart: unless-stopped
+    networks:
+      - shield-net
+
+networks:
+  shield-net:
+    driver: bridge
